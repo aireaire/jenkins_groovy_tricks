@@ -1,0 +1,22 @@
+- hosts: all
+  tasks:
+  - name: get usable address to dev mapping
+    set_fact:
+      ifaces: "{{ ifaces|default({}) | combine( {item.value | json_query('ipv4.address') : item.key | regex_replace('ansible_(.)','\\1')} )}}"
+    with_dict: "{{ hostvars[inventory_hostname] }}"
+    when:  item.value | json_query('ipv4.address') != ""
+
+  - name: print interfaces map
+    debug:
+      var: ifaces
+
+  - name: generate ip routes commands
+    set_fact:
+      all_routes: "{{ all_routes|default([]) + [ item.1 + ' dev ' + ifaces[item.0.iface_addr] ] }}"
+    with_subelements:
+    - "{{ routes }}"
+    - iface_routes
+
+  - name: print 'ip route' commands
+    debug:
+      var: all_routes
